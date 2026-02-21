@@ -11,8 +11,6 @@ import expenseRoutes from './routes/expenses.js';
 import dashboardRoutes from './routes/dashboard.js';
 import analyticsRoutes from './routes/analytics.js';
 
-console.log('JWT_SECRET:', process.env.JWT_SECRET);
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 
