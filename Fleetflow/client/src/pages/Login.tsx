@@ -1,116 +1,175 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Link } from 'react-router-dom';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const { login, user } = useAuthStore();
-  const navigate = useNavigate();
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
+  const { login, user }         = useAuthStore();
+  const navigate                = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
+    if (user) navigate('/');
   }, [user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setLoading(true);
     try {
       await login(email, password);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || 'Invalid email or password');
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            FleetFlow
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Fleet & Logistics Management System
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          </div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
+    }}>
+      <div style={{ width: '100%', maxWidth: '360px', animation: 'ff-up .28s cubic-bezier(.32,.72,0,1) both' }}>
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  alert('Please contact your system administrator to reset your password.');
+        {/* Brand */}
+        <div style={{ marginBottom: '32px', textAlign: 'center' }}>
+          <div style={{
+            fontSize: '1.4rem', fontWeight: 600,
+            letterSpacing: '-.03em', color: 'var(--text)',
+          }}>
+            FleetFlow
+          </div>
+          <div style={{ fontSize: '.82rem', color: 'var(--text-3)', marginTop: '4px' }}>
+            Sign in to your workspace
+          </div>
+        </div>
+
+        {/* Card */}
+        <div style={{
+          background: 'var(--bg)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--r-xl)',
+          padding: '28px 28px 24px',
+          boxShadow: '0 2px 12px rgba(0,0,0,.06)',
+        }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+            {error && (
+              <div className="ff-alert-error">{error}</div>
+            )}
+
+            <div className="ff-form-group">
+              <label className="ff-label">Email address</label>
+              <input
+                type="email" required autoFocus
+                className="ff-input"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="ff-form-group">
+              <label className="ff-label">Password</label>
+              <input
+                type="password" required
+                className="ff-input"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => alert('Contact your system administrator to reset your password.')}
+                style={{
+                  background: 'none', border: 'none', padding: 0,
+                  fontSize: '.78rem', color: 'var(--text-3)',
+                  cursor: 'pointer', fontFamily: 'inherit',
                 }}
-                className="font-medium text-blue-600 hover:text-blue-500"
               >
                 Forgot password?
-              </a>
+              </button>
             </div>
-          </div>
 
-          <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              disabled={loading}
+              style={{
+                marginTop: '2px',
+                width: '100%', padding: '9px',
+                background: 'var(--text)', color: 'var(--bg)',
+                border: 'none', borderRadius: 'var(--r)',
+                fontSize: '.875rem', fontWeight: 500,
+                fontFamily: 'inherit',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? .65 : 1,
+                transition: 'opacity 150ms',
+                display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: '8px',
+              }}
             >
-              Sign in
+              {loading && (
+                <span style={{
+                  width: '13px', height: '13px',
+                  border: '2px solid rgba(255,255,255,.3)',
+                  borderTopColor: '#fff',
+                  borderRadius: '50%',
+                  display: 'inline-block',
+                  animation: 'ff-spin .6s linear infinite',
+                }} />
+              )}
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
-          </div>
-          <p className="text-center text-xs text-gray-500">
-            Default: admin@fleetflow.com / admin123
-          </p>
 
-          <p className="text-center text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">Sign up</Link>
-          </p>
-        </form>
+          </form>
+        </div>
+
+        {/* Sign up link */}
+        <div style={{
+          marginTop: '16px',
+          textAlign: 'center',
+          fontSize: '.8rem',
+          color: 'var(--text-3)',
+        }}>
+          Don't have an account?{' '}
+          <Link to="/signup" style={{
+            color: 'var(--accent)',
+            fontWeight: 500,
+            textDecoration: 'none',
+          }}>
+            Sign up
+          </Link>
+        </div>
+
+        {/* Default creds */}
+        <div style={{
+          marginTop: '12px',
+          padding: '10px 14px',
+          background: 'var(--bg-subtle)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--r)',
+          fontSize: '.74rem',
+          color: 'var(--text-3)',
+          lineHeight: 1.6,
+          textAlign: 'center',
+        }}>
+          <span style={{ fontWeight: 500, color: 'var(--text-2)' }}>Default credentials</span>
+          <br />
+          admin@fleetflow.com · admin123
+        </div>
+
       </div>
     </div>
   );
 }
-
