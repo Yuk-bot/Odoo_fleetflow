@@ -127,6 +127,3 @@ httpOnly cookie instead of localStorage for the JWT, refresh token rotation, RBA
 
 ---
 
-## Team
-
-Built in 8 hours at Odoo Hackathon 2026.
