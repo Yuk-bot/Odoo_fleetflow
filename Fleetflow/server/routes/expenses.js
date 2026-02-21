@@ -8,33 +8,47 @@ router.use(authenticateToken);
 // Get all expenses
 router.get('/', async (req, res) => {
   try {
-    const { vehicle_id, trip_id, expense_type } = req.query;
-    let query = `
-      SELECT e.*, v.name as vehicle_name, v.license_plate,
-             t.origin, t.destination
+    const rows = await db.prepare(`
+      SELECT 
+        e.trip_id,
+        e.status,
+        e.expense_type,
+        e.total_cost,
+        t.origin,
+        t.destination,
+        t.distance_km,
+        d.name as driver_name
       FROM expenses e
-      JOIN vehicles v ON e.vehicle_id = v.id
-      LEFT JOIN trips t ON e.trip_id = t.id
-      WHERE 1=1
-    `;
-    const params = [];
+      JOIN trips t ON e.trip_id = t.id
+      JOIN drivers d ON t.driver_id = d.id
+      ORDER BY e.created_at DESC
+    `).all();
 
-    if (vehicle_id) {
-      query += ' AND e.vehicle_id = ?';
-      params.push(vehicle_id);
-    }
-    if (trip_id) {
-      query += ' AND e.trip_id = ?';
-      params.push(trip_id);
-    }
-    if (expense_type) {
-      query += ' AND e.expense_type = ?';
-      params.push(expense_type);
-    }
+    const grouped = {};
 
-    query += ' ORDER BY e.expense_date DESC';
-    const expenses = await db.prepare(query).all(...params);
-    res.json(expenses);
+    rows.forEach(row => {
+      if (!grouped[row.trip_id]) {
+        grouped[row.trip_id] = {
+          trip_id: row.trip_id,
+          origin: row.origin,
+          destination: row.destination,
+          driver_name: row.driver_name,
+          distance_km: row.distance_km,
+          fuel_expense: 0,
+          misc_expense: 0,
+          status: row.status
+        };
+      }
+
+      if (row.expense_type === 'Fuel') {
+        grouped[row.trip_id].fuel_expense += Number(row.total_cost);
+      } else {
+        grouped[row.trip_id].misc_expense += Number(row.total_cost);
+      }
+    });
+
+    res.json(Object.values(grouped));
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

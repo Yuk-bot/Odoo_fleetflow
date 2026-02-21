@@ -17,7 +17,8 @@ interface Trip {
   id: number;
   origin: string;
   destination: string;
-  driver_name: string;
+  driver_name?: string;
+  status?: string;
 }
 
 const EMPTY = { trip_id: '', fuel_expense: '', misc_expense: '' };
@@ -31,7 +32,6 @@ function badge(s: string) {
   return m[s] ?? 'ff-badge ff-badge-gray';
 }
 
-/* ---------- SAFE MONEY FORMATTER ---------- */
 const usd = (value?: number | null) => {
   const num = Number(value ?? 0);
   if (isNaN(num)) return "$0.00";
@@ -42,7 +42,6 @@ const usd = (value?: number | null) => {
   });
 };
 
-/* ---------- NORMALIZE API DATA ---------- */
 const normalizeExpense = (e: any): Expense => ({
   ...e,
   fuel_expense: Number(e.fuel_expense ?? 0),
@@ -57,20 +56,35 @@ export default function ExpenseLogging() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ ...EMPTY });
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   async function loadAll() {
     try {
-      const [ex, tr] = await Promise.all([
+      setLoading(true);
+
+      const [exRes, trRes] = await Promise.all([
         api.get('/expenses'),
         api.get('/trips'),
       ]);
 
-      // ✅ normalize numbers here
-      setExpenses(ex.data.map(normalizeExpense));
-      setTrips(tr.data.filter((t: any) => t.status === 'Completed'));
-    } catch (e) {
-      console.error(e);
+      // 🔥 SAFE ARRAY HANDLING
+      const expenseData = Array.isArray(exRes.data)
+        ? exRes.data
+        : exRes.data?.data ?? [];
+
+      const tripData = Array.isArray(trRes.data)
+        ? trRes.data
+        : trRes.data?.data ?? [];
+
+      setExpenses(expenseData.map(normalizeExpense));
+      setTrips(tripData);
+
+    } catch (error) {
+      alert('Failed to load data from server');
+      setExpenses([]);
+      setTrips([]);
     } finally {
       setLoading(false);
     }
@@ -78,6 +92,11 @@ export default function ExpenseLogging() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!form.trip_id) {
+      alert("Please select a trip");
+      return;
+    }
 
     try {
       await api.post('/expenses', {
@@ -87,7 +106,7 @@ export default function ExpenseLogging() {
       });
 
       close();
-      loadAll();
+      await loadAll();
     } catch (ex: any) {
       alert(ex.response?.data?.error ?? 'Failed to log expense');
     }
@@ -96,7 +115,7 @@ export default function ExpenseLogging() {
   async function approve(id: number) {
     try {
       await api.patch(`/expenses/${id}/approve`);
-      loadAll();
+      await loadAll();
     } catch {
       alert('Failed to approve');
     }
@@ -112,7 +131,6 @@ export default function ExpenseLogging() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm({ ...form, [k]: e.target.value });
 
-  /* ---------- SAFE TOTALS ---------- */
   const totalFuel = expenses.reduce(
     (s, e) => s + Number(e.fuel_expense ?? 0),
     0
@@ -123,13 +141,14 @@ export default function ExpenseLogging() {
     0
   );
 
-  if (loading)
+  if (loading) {
     return (
       <div className="ff-loading">
         <div className="ff-spinner" />
-        Loading
+        Loading...
       </div>
     );
+  }
 
   return (
     <div className="ff-page">
@@ -150,8 +169,11 @@ export default function ExpenseLogging() {
         </button>
       </div>
 
-      {/* KPI */}
-      <div className="ff-kpi-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 20 }}>
+      {/* KPI Cards */}
+      <div
+        className="ff-kpi-grid"
+        style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 20 }}
+      >
         <div className="ff-kpi-card">
           <div className="ff-kpi-label">Total Fuel</div>
           <div className="ff-kpi-value">{usd(totalFuel)}</div>
@@ -164,10 +186,13 @@ export default function ExpenseLogging() {
 
         <div className="ff-kpi-card">
           <div className="ff-kpi-label">Total Spend</div>
-          <div className="ff-kpi-value">{usd(totalFuel + totalMisc)}</div>
+          <div className="ff-kpi-value">
+            {usd(totalFuel + totalMisc)}
+          </div>
         </div>
       </div>
 
+      {/* Table */}
       <div className="ff-card">
         <div className="ff-table-wrap">
           <table className="ff-table">
@@ -185,48 +210,54 @@ export default function ExpenseLogging() {
             </thead>
 
             <tbody>
-              {expenses.map((ex) => (
-                <tr key={ex.id}>
-                  <td>
-                    {ex.origin && ex.destination ? (
-                      <div>{ex.origin} → {ex.destination}</div>
-                    ) : (
-                      <div>Trip #{ex.trip_id}</div>
-                    )}
-                  </td>
+              {expenses.length > 0 ? (
+                expenses.map((ex) => (
+                  <tr key={ex.id}>
+                    <td>
+                      {ex.origin && ex.destination
+                        ? `${ex.origin} → ${ex.destination}`
+                        : `Trip #${ex.trip_id}`}
+                    </td>
 
-                  <td>{ex.driver_name}</td>
+                    <td>{ex.driver_name ?? "—"}</td>
+                    <td>
+                      {ex.distance_km
+                        ? `${ex.distance_km} km`
+                        : '—'}
+                    </td>
 
-                  <td>
-                    {ex.distance_km ? `${ex.distance_km} km` : '—'}
-                  </td>
+                    <td>{usd(ex.fuel_expense)}</td>
+                    <td>{usd(ex.misc_expense)}</td>
+                    <td>
+                      {usd(
+                        (ex.fuel_expense ?? 0) +
+                          (ex.misc_expense ?? 0)
+                      )}
+                    </td>
 
-                  <td>{usd(ex.fuel_expense)}</td>
-                  <td>{usd(ex.misc_expense)}</td>
-                  <td>{usd((ex.fuel_expense ?? 0) + (ex.misc_expense ?? 0))}</td>
+                    <td>
+                      <span className={badge(ex.status)}>
+                        {ex.status}
+                      </span>
+                    </td>
 
-                  <td>
-                    <span className={badge(ex.status)}>
-                      {ex.status}
-                    </span>
-                  </td>
-
-                  <td>
-                    {ex.status === 'Pending' && (
-                      <button
-                        className="ff-btn ff-btn-success ff-btn-sm"
-                        onClick={() => approve(ex.id)}
-                      >
-                        Approve
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-
-              {!expenses.length && (
+                    <td>
+                      {ex.status === 'Pending' && (
+                        <button
+                          className="ff-btn ff-btn-success ff-btn-sm"
+                          onClick={() => approve(ex.id)}
+                        >
+                          Approve
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
                 <tr>
-                  <td colSpan={8}>No expenses logged yet</td>
+                  <td colSpan={8}>
+                    No expenses logged yet
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -234,14 +265,23 @@ export default function ExpenseLogging() {
         </div>
       </div>
 
-      {/* modal unchanged */}
+      {/* Modal */}
       {open && (
-        <div className="ff-overlay" onClick={(e) => e.target === e.currentTarget && close()}>
+        <div
+          className="ff-overlay"
+          onClick={(e) =>
+            e.target === e.currentTarget && close()
+          }
+        >
           <div className="ff-modal">
             <form onSubmit={submit}>
               <div className="ff-modal-body">
 
-                <select required value={form.trip_id} onChange={f('trip_id')}>
+                <select
+                  required
+                  value={form.trip_id}
+                  onChange={f('trip_id')}
+                >
                   <option value="">Select trip</option>
                   {trips.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -268,8 +308,12 @@ export default function ExpenseLogging() {
               </div>
 
               <div className="ff-modal-foot">
-                <button type="button" onClick={close}>Cancel</button>
-                <button type="submit">Log Expense</button>
+                <button type="button" onClick={close}>
+                  Cancel
+                </button>
+                <button type="submit">
+                  Log Expense
+                </button>
               </div>
             </form>
           </div>

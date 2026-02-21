@@ -14,7 +14,21 @@ router.use((req, res, next) => {
   }
 });
 
+// Get trips for dropdown (simple list)
+router.get('/dropdown', async (req, res) => {
+  try {
+    const trips = await db.prepare(`
+      SELECT id, origin, destination, created_at
+      FROM trips
+      ORDER BY created_at DESC
+    `).all();
 
+    res.json(trips);
+  } catch (error) {
+    console.error("TRIP DROPDOWN ERROR:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 router.get('/', async (req, res) => {
   try {
     const trips = await db.prepare(`

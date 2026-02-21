@@ -123,23 +123,22 @@ function createTables() {
   `);
 
   db.run(`
-    CREATE TABLE IF NOT EXISTS expenses (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      vehicle_id INTEGER NOT NULL,
-      trip_id INTEGER,
-      expense_type TEXT NOT NULL CHECK(expense_type IN ('Fuel', 'Other')),
-      liters REAL,
-      cost_per_liter REAL,
-      total_cost REAL NOT NULL,
-      expense_date DATE NOT NULL,
-      description TEXT,
-      created_by INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
-      FOREIGN KEY (trip_id) REFERENCES trips(id),
-      FOREIGN KEY (created_by) REFERENCES users(id)
-    )
-  `);
+  CREATE TABLE IF NOT EXISTS expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehicle_id INTEGER NOT NULL,
+    trip_id INTEGER NOT NULL,
+    expense_type TEXT NOT NULL CHECK(expense_type IN ('Fuel', 'Other')),
+    total_cost REAL NOT NULL,
+    expense_date DATE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Pending'
+      CHECK(status IN ('Pending', 'Approved', 'Rejected')),
+    created_by INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+    FOREIGN KEY (trip_id) REFERENCES trips(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+  )
+`);
 }
 
 function createIndexes() {
